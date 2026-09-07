@@ -1,1 +1,1 @@
-Photographs and artwork go here as .jpg or .webp files.
+Photographs and artwork go here as .jpg or .webp.

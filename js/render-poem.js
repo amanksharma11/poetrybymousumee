@@ -1,70 +1,75 @@
 /* ============================================================
-   render-poem.js — the single poem page
-   Romanisation, translation, and recitation.
+   render-poem.js — one poem, with its reading aids
    ============================================================ */
 
 (function () {
   "use strict";
 
-  var el = Site.el;
-  var sheet = document.getElementById("poem-sheet");
-  var status = document.getElementById("poem-status");
-  var current = null;
+  var el = Site.el, icon = Site.icon;
+  var sheet = document.getElementById("sheet");
+  var statusEl = document.getElementById("status");
+  var pager = document.getElementById("pager");
   var neighbours = { prev: null, next: null };
 
   function say(msg, tone) {
-    status.textContent = msg || "";
-    if (tone) status.setAttribute("data-tone", tone);
-    else status.removeAttribute("data-tone");
+    statusEl.textContent = msg || "";
+    if (tone) statusEl.setAttribute("data-tone", tone); else statusEl.removeAttribute("data-tone");
   }
 
-  function slugFromUrl() {
-    return new URLSearchParams(location.search).get("p") || "";
+  function button(label, iconName, onClick, toggle) {
+    var b = el("button", { class: "btn", type: "button" });
+    if (toggle) {
+      b.setAttribute("aria-pressed", "false");
+      b.innerHTML = '<span class="dot"></span>' + icon(iconName) + "<span>" + label + "</span>";
+    } else {
+      b.innerHTML = icon(iconName) + "<span>" + label + "</span>";
+    }
+    b.addEventListener("click", function () { onClick(b); });
+    return b;
+  }
+
+  function setPressed(b, on) {
+    b.setAttribute("aria-pressed", String(on));
+    b.classList.toggle("is-on", on);
   }
 
   /* ---------------- render ---------------- */
 
   function render(poem) {
-    document.title = poem.title + " · Mousumee Ghosh";
+    document.title = Site.fullTitle(poem) + " · Mousumee Ghosh";
     sheet.innerHTML = "";
 
-    var head = el("div", { class: "poem-header" });
-    head.appendChild(el("h1", { class: "poem-title", lang: poem.lang, text: poem.title }));
-    if (poem.titleEnglish || poem.titleRoman) {
-      head.appendChild(el("p", {
-        class: "poem-meta",
-        text: [poem.titleRoman, poem.titleEnglish].filter(Boolean).join(" · ")
+    var head = el("div", { class: "poem-head" });
+    var h1 = el("h1", { class: "display", lang: poem.lang, text: poem.title });
+    var roman = Site.romanTitle(poem);
+    if (roman) {
+      h1.appendChild(el("span", {
+        class: "roman", lang: "en",
+        text: poem.titleEnglish ? roman + " · " + poem.titleEnglish : roman
       }));
     }
+    head.appendChild(h1);
 
     var meta = el("div", { class: "poem-meta" });
-    meta.appendChild(el("span", { class: "lang-chip", "data-lang": poem.lang, text: Site.langName(poem.lang) }));
+    meta.appendChild(el("span", { class: "stamp", "data-lang": poem.lang, text: Site.langName(poem.lang) }));
     if (poem.date) meta.appendChild(el("span", { text: Site.formatDate(poem.date) }));
     poem.tags.forEach(function (t) {
-      meta.appendChild(el("a", {
-        href: "poems.html?tag=" + encodeURIComponent(t),
-        lang: poem.lang,
-        text: t
-      }));
+      meta.appendChild(el("a", { href: "poems.html?tag=" + encodeURIComponent(t), lang: poem.lang, text: t }));
     });
     head.appendChild(meta);
     sheet.appendChild(head);
 
     if (poem.image) {
-      sheet.appendChild(el("img", {
-        src: poem.image,
-        alt: "",
-        loading: "lazy",
-        style: "margin-bottom:1.5rem;border:1px solid rgba(42,33,26,.2)"
-      }));
+      sheet.appendChild(el("img", { src: poem.image, alt: "", loading: "lazy",
+        style: "border:2px solid var(--ink);margin-bottom:1.75rem" }));
     }
 
-    var body = el("div", { class: "poem-body", id: "poem-body" });
+    var body = el("div", { class: "poem-body", id: "body" });
     poem.stanzas.forEach(function (stanza, si) {
-      var block = el("div", { class: "poem-stanza" });
+      var block = el("div", { class: "stanza" });
       stanza.forEach(function (text, li) {
-        var p = el("p", { class: "poem-line", "data-s": si, "data-l": li });
-        p.appendChild(el("span", { class: "orig", lang: poem.lang, text: text }));
+        var p = el("p", { class: "line", "data-s": si, "data-l": li });
+        p.appendChild(el("span", { lang: poem.lang, text: text }));
         block.appendChild(p);
       });
       body.appendChild(block);
@@ -72,219 +77,195 @@
     sheet.appendChild(body);
 
     if (poem.note) {
-      sheet.appendChild(el("p", {
-        class: "poem-meta",
-        style: "margin-top:2rem;font-style:italic",
-        text: poem.note
-      }));
+      sheet.appendChild(el("p", { style: "margin-top:2rem;font-style:italic;color:var(--ink-2)", text: poem.note }));
     }
 
-    sheet.appendChild(buildTools(poem));
-    sheet.appendChild(status);
-
-    buildNav();
+    sheet.appendChild(toolbar(poem));
+    sheet.appendChild(statusEl);
+    buildPager();
   }
 
-  /* ---------------- tools ---------------- */
+  /* ---------------- toolbar ---------------- */
 
-  function buildTools(poem) {
-    var tools = el("div", { class: "poem-tools" });
+  function toolbar(poem) {
+    var bar = el("div", { class: "toolbar" });
 
-    var listen = el("button", { class: "btn btn-primary", type: "button", id: "btn-listen" });
-    listen.textContent = "Listen";
-    listen.addEventListener("click", function () { toggleListen(poem, listen); });
-    tools.appendChild(listen);
+    /* group one: the three things that help you read the poem */
+    var aids = el("div", { class: "tool-group" });
+    aids.appendChild(el("p", { class: "tool-label", text: "Help me read this" }));
 
-    var roman = el("button", { class: "btn", type: "button", "aria-pressed": "false" });
-    roman.textContent = "Pronunciation";
-    roman.addEventListener("click", function () {
-      var on = roman.getAttribute("aria-pressed") === "true";
-      roman.setAttribute("aria-pressed", String(!on));
-      if (on) removeLayer("translit");
-      else showTranslit(poem);
-    });
-    tools.appendChild(roman);
+    var listenBtn = button("Listen", "listen", function (b) { toggleListen(poem, b); }, true);
+    aids.appendChild(listenBtn);
 
-    var trans = el("button", { class: "btn", type: "button", "aria-pressed": "false" });
-    trans.textContent = "English";
-    trans.addEventListener("click", function () {
-      var on = trans.getAttribute("aria-pressed") === "true";
-      if (on) { trans.setAttribute("aria-pressed", "false"); removeLayer("translation"); }
-      else { trans.setAttribute("aria-pressed", "true"); showTranslation(poem, trans); }
-    });
-    tools.appendChild(trans);
+    aids.appendChild(button("Pronunciation", "speak", function (b) {
+      var on = b.getAttribute("aria-pressed") === "true";
+      setPressed(b, !on);
+      if (on) strip("aid-say"); else showSay(poem);
+    }, true));
 
-    var copy = el("button", { class: "btn", type: "button" });
-    copy.textContent = "Copy";
-    copy.addEventListener("click", function () {
-      var text = poem.title + "\n\n" + Site.plainText(poem) + "\n\n— Mousumee Ghosh";
+    aids.appendChild(button("English meaning", "meaning", function (b) {
+      var on = b.getAttribute("aria-pressed") === "true";
+      if (on) { setPressed(b, false); strip("aid-mean"); }
+      else { setPressed(b, true); showMeaning(poem, b); }
+    }, true));
+
+    bar.appendChild(aids);
+
+    /* group two: things you do with the poem afterwards */
+    var acts = el("div", { class: "tool-group" });
+    acts.appendChild(el("p", { class: "tool-label", text: "Take it with you" }));
+
+    acts.appendChild(button("Copy", "copy", function () {
+      var text = Site.fullTitle(poem) + "\n\n" + Site.plainText(poem) + "\n\n— Mousumee Ghosh";
       navigator.clipboard.writeText(text)
-        .then(function () { say("Poem copied to your clipboard."); })
-        .catch(function () { say("Copy did not work. Select the text and copy it by hand.", "warn"); });
-    });
-    tools.appendChild(copy);
+        .then(function () { say("Copied. Paste it wherever you like."); })
+        .catch(function () { say("Copy did not work here. Select the poem and copy it by hand.", "warn"); });
+    }));
 
-    var share = el("button", { class: "btn", type: "button" });
-    share.textContent = "Share";
-    share.addEventListener("click", function () {
-      var payload = { title: poem.title, text: poem.title + " — a poem by Mousumee Ghosh", url: location.href };
-      if (navigator.share) {
-        navigator.share(payload).catch(function () { /* dismissed */ });
-      } else {
-        navigator.clipboard.writeText(location.href)
-          .then(function () { say("Link copied. Paste it anywhere you like."); })
-          .catch(function () { say("Copy the address from your browser bar to share this poem.", "warn"); });
-      }
-    });
-    tools.appendChild(share);
+    acts.appendChild(button("Share", "share", function () {
+      var payload = { title: poem.title, text: Site.fullTitle(poem) + " — a poem by Mousumee Ghosh", url: location.href };
+      if (navigator.share) navigator.share(payload).catch(function () {});
+      else navigator.clipboard.writeText(location.href)
+        .then(function () { say("Link copied."); })
+        .catch(function () { say("Copy the address from your browser bar to share this.", "warn"); });
+    }));
 
-    var print = el("button", { class: "btn", type: "button" });
-    print.textContent = "Save as PDF";
-    print.addEventListener("click", function () { window.print(); });
-    tools.appendChild(print);
+    acts.appendChild(button("Save as PDF", "print", function () { window.print(); }));
 
-    return tools;
+    bar.appendChild(acts);
+    return bar;
   }
 
   function eachLine(fn) {
-    Array.prototype.forEach.call(document.querySelectorAll(".poem-line"), function (p) {
+    Array.prototype.forEach.call(document.querySelectorAll(".line"), function (p) {
       fn(p, Number(p.dataset.s), Number(p.dataset.l));
     });
   }
 
-  function removeLayer(cls) {
+  function strip(cls) {
     Array.prototype.forEach.call(document.querySelectorAll("." + cls), function (n) { n.remove(); });
   }
 
-  /* ---------------- romanisation ---------------- */
+  /* ---------------- pronunciation ---------------- */
 
-  function showTranslit(poem) {
-    removeLayer("translit");
+  function showSay(poem) {
+    strip("aid-say");
     if (!Translit.supports(poem.lang)) {
-      say("Pronunciation help is available for Bangla and Hindi only.", "warn");
+      say("Pronunciation help covers Bangla and Hindi.", "warn");
       return;
     }
     eachLine(function (p, s, l) {
-      var source = poem.stanzas[s][l];
-      if (!source || !source.trim()) return;
+      var src = poem.stanzas[s][l];
+      if (!src || !src.trim()) return;
       var manual = poem.translit && poem.translit[s] && poem.translit[s][l];
-      p.appendChild(el("span", { class: "translit", text: manual || Translit.line(source) }));
+      p.appendChild(el("span", { class: "aid-say", lang: "en", text: manual || Translit.line(src) }));
     });
-    say("Romanised for reading aloud. It follows the sound, not the spelling, so it is close rather than exact.");
+    say("Each line written out in English letters, following the sound rather than the spelling.");
   }
 
-  /* ---------------- translation ---------------- */
+  /* ---------------- English meaning ---------------- */
 
-  function showTranslation(poem, button) {
-    removeLayer("translation");
-
+  function showMeaning(poem, button) {
+    strip("aid-mean");
     var stored = poem.translation && poem.translation.en;
+
     if (stored) {
       eachLine(function (p, s, l) {
-        var text = stored[s] && stored[s][l];
-        if (text) p.appendChild(el("span", { class: "translation", lang: "en", text: text }));
+        var t = stored[s] && stored[s][l];
+        if (t) p.appendChild(el("span", { class: "aid-mean", lang: "en", text: t }));
       });
-      say("Translation by the poet's family.");
+      say("Translated within the family, aiming at the sense rather than the music.");
       return;
     }
 
     button.disabled = true;
     say("Translating…");
-
     machineTranslate(poem)
       .then(function (map) {
         eachLine(function (p, s, l) {
-          var text = map[s + ":" + l];
-          if (text) p.appendChild(el("span", { class: "translation", lang: "en", text: text }));
+          var t = map[s + ":" + l];
+          if (t) p.appendChild(el("span", { class: "aid-mean", lang: "en", text: t }));
         });
-        say("Machine translation — rough by nature, since poetry resists it. Treat it as a doorway, not the poem.");
+        say("Machine translation. Poetry resists it, so read this as a doorway rather than the poem.");
       })
       .catch(function (err) {
-        button.setAttribute("aria-pressed", "false");
-        say("Translation is unavailable right now. The free service limits how much it will translate in a day. " +
+        setPressed(button, false);
+        say("Translation is unavailable just now — the free service caps how much it will do in a day. " +
             (err && err.message ? "(" + err.message + ")" : ""), "warn");
       })
       .then(function () { button.disabled = false; });
   }
 
-  /* MyMemory: free, no API key, roughly 5,000 words a day per address.
-     Requests are capped at 500 characters, so lines are batched. */
+  /* MyMemory: free, no key, about 5,000 words a day, 500 characters a call. */
   function machineTranslate(poem) {
     var jobs = [];
     poem.stanzas.forEach(function (st, s) {
-      st.forEach(function (text, l) {
-        if (text && text.trim()) jobs.push({ key: s + ":" + l, text: text.trim() });
-      });
+      st.forEach(function (t, l) { if (t && t.trim()) jobs.push({ key: s + ":" + l, text: t.trim() }); });
     });
-
-    var out = {};
-    var pair = poem.lang + "|en";
+    var out = {}, pair = poem.lang + "|en";
 
     function step(i) {
       if (i >= jobs.length) return Promise.resolve(out);
       var job = jobs[i];
-      var url = "https://api.mymemory.translated.net/get?q=" +
-                encodeURIComponent(job.text.slice(0, 480)) + "&langpair=" + pair;
-      return fetch(url)
+      return fetch("https://api.mymemory.translated.net/get?q=" +
+                   encodeURIComponent(job.text.slice(0, 480)) + "&langpair=" + pair)
         .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data && data.responseData && data.responseData.translatedText) {
-            var t = data.responseData.translatedText;
-            if (!/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(t)) out[job.key] = t;
-            else throw new Error("daily limit reached");
+        .then(function (d) {
+          var t = d && d.responseData && d.responseData.translatedText;
+          if (t) {
+            if (/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(t)) throw new Error("daily limit reached");
+            out[job.key] = t;
           }
           return step(i + 1);
         });
     }
-
     return step(0);
   }
 
-  /* ---------------- recitation ---------------- */
+  /* ---------------- listening ---------------- */
 
-  var speaking = false;
-  var keepAlive = null;
-  var audioEl = null;
+  var speaking = false, keepAlive = null, audioEl = null;
 
-  function toggleListen(poem, button) {
-    if (speaking) { stopListening(button); return; }
+  function setListenLabel(b, on) {
+    b.innerHTML = '<span class="dot"></span>' + icon(on ? "stop" : "listen") +
+                  "<span>" + (on ? "Stop" : "Listen") + "</span>";
+    setPressed(b, on);
+  }
+
+  function toggleListen(poem, b) {
+    if (speaking) { stopListening(b); return; }
 
     if (poem.audio) {
       audioEl = new Audio(poem.audio);
-      audioEl.addEventListener("ended", function () { stopListening(button); });
+      audioEl.addEventListener("ended", function () { stopListening(b); });
       audioEl.addEventListener("error", function () {
-        say("That recording would not play. Falling back to the built-in voice.", "warn");
-        speakWithBrowser(poem, button);
+        say("That recording would not play, so here is the device voice instead.", "warn");
+        speakWithBrowser(poem, b);
       });
       audioEl.play().then(function () {
-        speaking = true;
-        button.textContent = "Stop";
-        say("Recited by the poet.");
-      }).catch(function () {
-        speakWithBrowser(poem, button);
-      });
+        speaking = true; setListenLabel(b, true);
+        say("In her own voice.");
+      }).catch(function () { speakWithBrowser(poem, b); });
       return;
     }
-
-    speakWithBrowser(poem, button);
+    speakWithBrowser(poem, b);
   }
 
-  function stopListening(button) {
+  function stopListening(b) {
     speaking = false;
-    button.textContent = "Listen";
+    setListenLabel(b, false);
     if (audioEl) { audioEl.pause(); audioEl = null; }
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (window.speechSynthesis) speechSynthesis.cancel();
     if (keepAlive) { clearInterval(keepAlive); keepAlive = null; }
   }
 
-  /* Voices load asynchronously in every browser, and are empty on the
-     first call in Chrome and Safari. Wait for them properly. */
+  /* Voices arrive asynchronously and the first call returns nothing
+     in Chrome and Safari, so wait for them properly. */
   function getVoices() {
     return new Promise(function (resolve) {
       if (!window.speechSynthesis) return resolve([]);
-      var voices = speechSynthesis.getVoices();
-      if (voices.length) return resolve(voices);
-
+      var v = speechSynthesis.getVoices();
+      if (v.length) return resolve(v);
       var settled = false;
       function done() {
         if (settled) return;
@@ -294,120 +275,97 @@
         resolve(speechSynthesis.getVoices());
       }
       speechSynthesis.addEventListener("voiceschanged", done);
-      var poll = setInterval(function () {
-        if (speechSynthesis.getVoices().length) done();
-      }, 120);
+      var poll = setInterval(function () { if (speechSynthesis.getVoices().length) done(); }, 120);
       setTimeout(done, 2500);
     });
   }
 
   function pickVoice(voices, lang) {
     var want = lang.toLowerCase();
-    var exact = voices.filter(function (v) { return v.lang.toLowerCase().replace("_", "-").indexOf(want) === 0; });
-    if (exact.length) {
-      // prefer a local voice; it will not cut out on a slow connection
-      var local = exact.filter(function (v) { return v.localService; });
-      return (local[0] || exact[0]);
-    }
-    return null;
+    var hits = voices.filter(function (v) { return v.lang.toLowerCase().replace("_", "-").indexOf(want) === 0; });
+    if (!hits.length) return null;
+    var local = hits.filter(function (v) { return v.localService; });
+    return local[0] || hits[0];
   }
 
-  function speakWithBrowser(poem, button) {
+  function speakWithBrowser(poem, b) {
     if (!window.speechSynthesis) {
-      say("This browser cannot read text aloud. Chrome on Android or Edge on Windows both can.", "warn");
+      say("This browser cannot read text aloud. Chrome on Android or Edge on Windows can.", "warn");
       return;
     }
-
     say("Finding a voice…");
 
     getVoices().then(function (voices) {
       var voice = pickVoice(voices, poem.lang);
-
-      if (!voice) {
-        say(missingVoiceHelp(poem.lang), "warn");
-        return;
-      }
+      if (!voice) { say(noVoiceHelp(poem.lang), "warn"); return; }
 
       var chunks = Site.lines(poem).filter(function (l) { return l && l.trim(); });
       speechSynthesis.cancel();
       speaking = true;
-      button.textContent = "Stop";
-      say("Reading aloud with the " + voice.name + " voice on your device.");
+      setListenLabel(b, true);
+      say("Read by the " + voice.name + " voice on this device.");
 
       chunks.forEach(function (text, i) {
         var u = new SpeechSynthesisUtterance(text);
-        u.voice = voice;
-        u.lang = voice.lang;
-        u.rate = 0.86;      // poetry wants a slower pace than prose
-        u.pitch = 1;
-        if (i === chunks.length - 1) {
-          u.onend = function () { stopListening(button); };
-        }
-        u.onerror = function () { stopListening(button); };
+        u.voice = voice; u.lang = voice.lang;
+        u.rate = 0.86;                       // poetry wants a slower pace than prose
+        if (i === chunks.length - 1) u.onend = function () { stopListening(b); };
+        u.onerror = function () { stopListening(b); };
         speechSynthesis.speak(u);
       });
 
-      // Chrome stops speaking after roughly fifteen seconds unless it is
-      // nudged. Pausing and resuming on a timer keeps the queue alive.
+      // Chrome falls silent after about fifteen seconds unless nudged.
       if (keepAlive) clearInterval(keepAlive);
       keepAlive = setInterval(function () {
         if (!speaking) { clearInterval(keepAlive); keepAlive = null; return; }
         if (speechSynthesis.speaking && !speechSynthesis.paused) {
-          speechSynthesis.pause();
-          speechSynthesis.resume();
+          speechSynthesis.pause(); speechSynthesis.resume();
         }
       }, 9000);
     });
   }
 
-  function missingVoiceHelp(lang) {
-    var name = Site.langName(lang);
+  function noVoiceHelp(lang) {
     if (lang === "bn") {
-      return "No " + name + " voice is installed on this device. Chrome on Android usually has one. " +
-             "On Windows, add Bengali under Settings › Time & language › Language. " +
-             "iPhone and iPad do not offer a Bangla voice yet.";
+      return "No Bangla voice is installed here. Chrome on Android usually has one; on Windows add " +
+             "Bengali under Settings › Time & language › Language. Apple devices have no Bangla voice yet.";
     }
-    return "No " + name + " voice is installed on this device. Adding the language in your system settings will add its voice too.";
+    return "No " + Site.langName(lang) + " voice is installed here. Adding the language in your system " +
+           "settings usually adds its voice too.";
   }
 
   /* ---------------- previous / next ---------------- */
 
-  function buildNav() {
-    var nav = document.getElementById("poem-nav");
-    nav.innerHTML = "";
+  function buildPager() {
+    pager.innerHTML = "";
     if (neighbours.prev) {
-      nav.appendChild(el("a", {
-        href: "poem.html?p=" + encodeURIComponent(neighbours.prev.slug),
-        lang: neighbours.prev.lang,
-        text: "← " + neighbours.prev.title
-      }));
-    } else { nav.appendChild(el("span", {})); }
+      var a = el("a", { href: "poem.html?p=" + encodeURIComponent(neighbours.prev.slug) });
+      a.appendChild(el("span", { text: "Newer" }));
+      a.appendChild(el("b", { lang: neighbours.prev.lang, text: neighbours.prev.title }));
+      pager.appendChild(a);
+    } else pager.appendChild(el("span"));
+
     if (neighbours.next) {
-      nav.appendChild(el("a", {
-        href: "poem.html?p=" + encodeURIComponent(neighbours.next.slug),
-        lang: neighbours.next.lang,
-        text: neighbours.next.title + " →"
-      }));
+      var c = el("a", { href: "poem.html?p=" + encodeURIComponent(neighbours.next.slug), style: "text-align:right" });
+      c.appendChild(el("span", { text: "Older" }));
+      c.appendChild(el("b", { lang: neighbours.next.lang, text: neighbours.next.title }));
+      pager.appendChild(c);
     }
   }
 
   /* ---------------- boot ---------------- */
 
   Site.load().then(function (data) {
-    var slug = slugFromUrl();
-    var idx = data.poems.findIndex(function (p) { return p.slug === slug; });
-
-    if (idx < 0) {
-      Site.fail(sheet, slug
-        ? "There is no poem at this address. Try the archive."
-        : "Choose a poem from the archive to read it here.");
+    var slug = new URLSearchParams(location.search).get("p") || "";
+    var i = data.poems.findIndex(function (p) { return p.slug === slug; });
+    if (i < 0) {
+      Site.fail(sheet, slug ? "There is no poem at this address. Try the collection."
+                            : "Pick a poem from the collection to read it here.");
       return;
     }
-
-    current = data.poems[idx];
-    neighbours.prev = data.poems[idx - 1] || null;
-    neighbours.next = data.poems[idx + 1] || null;
-    render(current);
+    neighbours.prev = data.poems[i - 1] || null;
+    neighbours.next = data.poems[i + 1] || null;
+    render(data.poems[i]);
   }).catch(function (err) {
     Site.fail(sheet, "The poems could not be loaded. " + err.message);
   });

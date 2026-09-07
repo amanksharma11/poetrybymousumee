@@ -1,0 +1,151 @@
+{
+  "site": {
+    "title": "মৌসুমী ঘোষ",
+    "titleEnglish": "Mousumee Ghosh",
+    "tagline": "Poems in Bangla and Hindi"
+  },
+  "poet": {
+    "name": "Mousumee Ghosh",
+    "nameBangla": "মৌসুমী ঘোষ",
+    "email": "poems@example.com",
+    "instagram": "https://instagram.com/your-handle"
+  },
+  "poems": [
+    {
+      "slug": "nodir-kache",
+      "title": "নদীর কাছে",
+      "titleRoman": "Nodir Kache",
+      "titleEnglish": "By the River",
+      "lang": "bn",
+      "date": "2026-04-18",
+      "tags": ["প্রকৃতি", "স্মৃতি"],
+      "audio": "",
+      "image": "",
+      "note": "",
+      "stanzas": [
+        [
+          "সন্ধ্যা নামে ধীরে নদীর বুকে",
+          "জলের ভাঁজে লুকোনো পুরোনো সুর"
+        ],
+        [
+          "আমি বসে থাকি ঘাটের সিঁড়িতে",
+          "স্মৃতিরা ভাসে, চলে যায় বহুদূর"
+        ]
+      ],
+      "translation": {
+        "en": [
+          [
+            "Evening comes down slowly on the river's breast,",
+            "an old tune hidden in the folds of the water."
+          ],
+          [
+            "I sit on the steps of the ghat",
+            "while memories drift, and travel far away."
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "shohorer-brishti",
+      "title": "শহরের বৃষ্টি",
+      "titleRoman": "Shohorer Brishti",
+      "titleEnglish": "Rain in the City",
+      "lang": "bn",
+      "date": "2026-02-09",
+      "tags": ["শহর", "বৃষ্টি"],
+      "audio": "",
+      "image": "",
+      "note": "",
+      "stanzas": [
+        [
+          "ইটের দেয়ালে বৃষ্টির আঙুল",
+          "লিখে যায় কারও না-বলা চিঠি"
+        ],
+        [
+          "ছাদের কার্নিশে জমে থাকে জল",
+          "আর জমে থাকে ফেলে আসা মাটি"
+        ]
+      ],
+      "translation": {
+        "en": [
+          [
+            "On the brick wall the fingers of the rain",
+            "write out someone's unspoken letter."
+          ],
+          [
+            "Water gathers along the ledge of the roof,",
+            "and so does the soil we left behind."
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "mayer-haat",
+      "title": "মায়ের হাত",
+      "titleRoman": "Mayer Haat",
+      "titleEnglish": "My Mother's Hands",
+      "lang": "bn",
+      "date": "2025-11-23",
+      "tags": ["মা", "স্মৃতি"],
+      "audio": "",
+      "image": "",
+      "note": "",
+      "stanzas": [
+        [
+          "হলুদ শাড়ির ভাঁজে রোদের গন্ধ",
+          "উনুনের পাশে বসে থাকা দুপুর"
+        ],
+        [
+          "সেই হাতে ছিল সমস্ত পৃথিবী",
+          "এখন কেবল ছবি, নিঃশব্দ, সুদূর"
+        ]
+      ],
+      "translation": {
+        "en": [
+          [
+            "In the folds of a yellow sari, the smell of sunlight;",
+            "an afternoon spent sitting beside the stove."
+          ],
+          [
+            "Those hands once held the whole world.",
+            "Now only a photograph, silent, far away."
+          ]
+        ]
+      }
+    },
+    {
+      "slug": "lautna",
+      "title": "लौटना",
+      "titleRoman": "Lautna",
+      "titleEnglish": "Returning",
+      "lang": "hi",
+      "date": "2025-08-30",
+      "tags": ["ঘরে ফেরা", "স্মৃতি"],
+      "audio": "",
+      "image": "",
+      "note": "",
+      "stanzas": [
+        [
+          "शाम की गली में एक दीया जलता है",
+          "किसी के लौटने की आस लिये"
+        ],
+        [
+          "मैं भी चलता हूँ उसी रास्ते पर",
+          "अपने ही पैरों के निशान लिये"
+        ]
+      ],
+      "translation": {
+        "en": [
+          [
+            "In the evening lane a small lamp burns,",
+            "holding the hope that someone will return."
+          ],
+          [
+            "I walk that same road myself,",
+            "carrying the prints of my own feet."
+          ]
+        ]
+      }
+    }
+  ]
+}
